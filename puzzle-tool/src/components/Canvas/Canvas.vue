@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, watch, onMounted, nextTick, computed } from 'vue'
 import { useCanvasStore } from '@/stores/canvas'
 import { useTemplateStore } from '@/stores/template'
 import { logger } from '@/utils'
 import Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
+import { useWindowSize } from '@vueuse/core'
 
 defineOptions({
   name: 'PuzzleCanvas'
@@ -19,6 +20,9 @@ const imageLayerRef = ref<{ getStage: () => Konva.Layer } | null>(null)
 const watermarkLayerRef = ref<{ getStage: () => Konva.Layer } | null>(null)
 
 const hoveredIndex = ref<number | null>(null)
+const activeIndex = ref<number | null>(null) // 移动端激活的插槽
+const { width } = useWindowSize()
+const isMobile = computed(() => width.value < 1024)
 const hoverTimeoutId = ref<number | null>(null)
 
 const stageConfig = ref({
@@ -81,6 +85,20 @@ const handleMouseLeave = () => {
     hoveredIndex.value = null
     hoverTimeoutId.value = null
   }, 100) // 100ms 延迟，防止鼠标快速移动时按钮闪烁
+}
+
+// 处理插槽点击（用于移动端激活控制面板）
+const handleSlotTap = (index: number) => {
+  if (isMobile.value) {
+    activeIndex.value = index
+  }
+}
+
+// 舞台空白处点击，关闭激活
+const handleStageTap = () => {
+  if (isMobile.value) {
+    activeIndex.value = null
+  }
 }
 
 // 根据位置与旋转返回水印组配置（偏移）
@@ -432,7 +450,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div ref="containerRef" class="w-full h-full flex items-center justify-center p-4 bg-gray-200/50 dark:bg-gray-800/20">
+  <div ref="containerRef" class="w-full h-full flex items-center justify-center p-2 sm:p-4 bg-gray-200/50 dark:bg-gray-800/20">
     <div
       class="shadow-lg"
       :style="{
@@ -440,7 +458,7 @@ onMounted(() => {
         overflow: 'hidden'
       }"
     >
-      <v-stage ref="stageRef" :config="stageConfig">
+      <v-stage ref="stageRef" :config="stageConfig" @click="handleStageTap" @tap="handleStageTap">
         <v-layer>
           <v-rect
             :config="{
@@ -470,6 +488,8 @@ onMounted(() => {
                 }"
                 @mouseenter="handleMouseEnter(index)"
                 @mouseleave="handleMouseLeave"
+                @click="handleSlotTap(index)"
+                @tap="handleSlotTap(index)"
               />
               <v-image
                 v-if="canvasStore.imageSlots[index] && images[index]"
@@ -506,6 +526,8 @@ onMounted(() => {
                 }"
                 @mousedown="(e: KonvaEventObject<MouseEvent>) => e.target.getStage()!.container().style.cursor = 'grabbing'"
                 @mouseup="(e: KonvaEventObject<MouseEvent>) => e.target.getStage()!.container().style.cursor = 'grab'"
+                @click="handleSlotTap(index)"
+                @tap="handleSlotTap(index)"
               />
               <v-group
                 v-else
@@ -538,10 +560,24 @@ onMounted(() => {
                     scaleY: 1.5
                   }"
                 />
+                <v-text
+                  :config="{
+                    text: '点击添加图片',
+                    x: 0,
+                    y: ((slot.height / 100) * (stageConfig.height - canvasStore.styleParams.padding.top - canvasStore.styleParams.padding.bottom) - canvasStore.styleParams.spacing) / 2 + 20,
+                    width: (slot.width / 100) * (stageConfig.width - canvasStore.styleParams.padding.left - canvasStore.styleParams.padding.right) - canvasStore.styleParams.spacing,
+                    align: 'center',
+                    fill: 'rgba(0,0,0,0.45)',
+                    fontSize: 14
+                  }"
+                />
               </v-group>
 
               <!-- 现代化图片控制面板 -->
-              <v-group v-if="canvasStore.imageSlots[index] && hoveredIndex === index">
+              <v-group v-if="canvasStore.imageSlots[index] && (isMobile ? activeIndex === index : hoveredIndex === index)"
+                @click="(e: any) => { e.cancelBubble = true }"
+                @tap="(e: any) => { e.cancelBubble = true }"
+              >
                 <!-- 控制面板背景 - 简约设计 -->
                 <v-rect
                   :config="{

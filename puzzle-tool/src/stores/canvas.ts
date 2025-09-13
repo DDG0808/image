@@ -224,14 +224,23 @@ export const useCanvasStore = defineStore('canvas', () => {
   }
 
   const clearImages = () => {
+    // 释放所有对象URL
     imageSlots.value.forEach(slot => {
       if (slot) {
         URL.revokeObjectURL(slot.url)
       }
     })
-    const templateStore = useTemplateStore()
-    if (templateStore.currentTemplate) {
-      initializeSlots(templateStore.currentTemplate.imageCount)
+    // 将所有插槽重置为 null，保持插槽数量不变
+    imageSlots.value = imageSlots.value.map(() => null)
+
+    // 强制触发舞台重绘，确保 UI 立即同步
+    try {
+      if (stageRef.value) {
+        const stage = stageRef.value.getStage()
+        stage.draw()
+      }
+    } catch {
+      // 安静失败，不影响主流程
     }
   }
 

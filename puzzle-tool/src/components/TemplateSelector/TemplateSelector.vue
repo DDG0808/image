@@ -1,57 +1,91 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useTemplateStore } from '@/stores/template'
-import { useCanvasStore } from '@/stores/canvas'
 import { useAppStore } from '@/stores/app'
 import TemplateItem from './TemplateItem.vue'
-import { CheckCircleIcon } from '@heroicons/vue/24/solid'
 import { trackEvent } from '@/analytics/umami'
 
 const templateStore = useTemplateStore()
-const canvasStore = useCanvasStore()
 const appStore = useAppStore()
 
-const selectedImageCount = ref<number>(canvasStore.imageSlots.filter(Boolean).length || 2)
+const activeImageCount = ref<number>(templateStore.availableImageCounts[0] || 2)
+const scrollContainerRef = ref<HTMLElement | null>(null)
+const groupRefs = ref<Map<number, HTMLElement>>(new Map())
+let observer: IntersectionObserver | null = null
 
-const currentTemplates = computed(() => {
-  return templateStore.templates[selectedImageCount.value]?.templates || []
-})
+const setGroupRef = (el: any, count: number) => {
+  if (el) {
+    groupRefs.value.set(count, el)
+  }
+}
 
-function selectTemplate(id: string) {
+function selectTemplate(id: string, imageCount: number) {
   templateStore.setTemplate(id)
   appStore.showSuccess('模板已应用', '新的布局已在画布上更新。')
   // 分析埋点：模板选择
-  const tpl = templateStore.templates[selectedImageCount.value]?.templates?.find(t => t.id === id)
+  const tpl = templateStore.templates[imageCount]?.templates?.find(t => t.id === id)
   trackEvent('template_selected', {
     templateId: id,
-    imageCount: selectedImageCount.value,
+    imageCount: imageCount,
     name: tpl?.name
   })
-}
-
-function handleCountSelection(count: number) {
-  selectedImageCount.value = count
-  // 自动选择该数量下的第一个模板
-  const firstTemplate = currentTemplates.value[0]
-  if (firstTemplate) {
-    selectTemplate(firstTemplate.id)
+  // 移动端：选择模板后自动关闭抽屉
+  if (window.innerWidth < 1024) {
+    appStore.closeTemplates()
   }
 }
+
+function scrollToGroup(count: number) {
+  const element = groupRefs.value.get(count)
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
+onMounted(() => {
+  const options = {
+    root: scrollContainerRef.value,
+    rootMargin: '0px',
+    threshold: 0.5 // 当元素50%可见时触发
+  }
+
+  observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const count = Number(entry.target.getAttribute('data-count'))
+        if (count) {
+          activeImageCount.value = count
+        }
+      }
+    })
+  }, options)
+
+  groupRefs.value.forEach(el => {
+    observer?.observe(el)
+  })
+})
+
+onBeforeUnmount(() => {
+  if (observer) {
+    observer.disconnect()
+  }
+})
 </script>
 
 <template>
-  <div class="flex flex-col h-full space-y-4">
-    <div>
+  <div class="flex flex-col h-full">
+    <!-- 顶部导航 -->
+    <div class="px-4 pt-4 pb-2">
       <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">图片数量</h3>
       <div class="relative">
-        <div class="flex space-x-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-thin">
+        <div class="flex space-x-2 overflow-x-auto pb-2 scrollbar-thin">
           <button
             v-for="count in templateStore.availableImageCounts"
-            :key="count"
-            @click="handleCountSelection(count)"
+            :key="`btn-${count}`"
+            @click="scrollToGroup(count)"
             :class="[
               'px-4 py-2 text-sm font-semibold rounded-[9px] transition-all duration-200 whitespace-nowrap',
-              selectedImageCount === count
+              activeImageCount === count
                 ? 'bg-primary-500 text-white shadow'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
             ]"
@@ -62,18 +96,32 @@ function handleCountSelection(count: number) {
       </div>
     </div>
 
-    <div class="flex-1 min-h-0 overflow-y-auto -mx-4 px-4">
-      <div v-if="currentTemplates.length > 0" class="grid grid-cols-2 gap-3">
-        <TemplateItem
-          v-for="template in currentTemplates"
-          :key="template.id"
-          :template="template"
-          :is-selected="templateStore.currentTemplateId === template.id"
-          @select="selectTemplate(template.id)"
-        />
-      </div>
-      <div v-else class="text-center py-10">
-        <p class="text-gray-500">没有找到该数量的模板。</p>
+    <!-- 模板列表 -->
+    <div ref="scrollContainerRef" class="flex-1 min-h-0 overflow-y-auto px-4 space-y-6">
+      <div 
+        v-for="count in templateStore.availableImageCounts"
+        :key="`group-${count}`"
+        :ref="(el) => setGroupRef(el, count)"
+        :data-count="count"
+        class="pt-2"
+      >
+        <div class="relative py-2">
+          <hr class="absolute top-1/2 -translate-y-1/2 w-full border-t border-gray-200 dark:border-gray-700" />
+          <h4 class="relative text-center bg-gray-100 dark:bg-gray-800 px-2 w-fit mx-auto">
+            <span class="text-xl font-bold text-gray-800 dark:text-gray-200">{{ count }}</span>
+            <span class="text-sm text-gray-500 dark:text-gray-400 ml-1">张</span>
+          </h4>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5 mt-2">
+          <TemplateItem
+            v-for="template in templateStore.templates[count]?.templates"
+            :key="template.id"
+            :template="template"
+            :is-selected="templateStore.currentTemplateId === template.id"
+            @select="selectTemplate(template.id, count)"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -99,5 +147,10 @@ function handleCountSelection(count: number) {
 }
 .dark .scrollbar-thin::-webkit-scrollbar-thumb {
   background-color: #4b5563;
+}
+
+/* 确保 sticky-header 背景与容器背景一致 */
+.sticky {
+  /* backdrop-filter: blur(5px); */ /* 可选：添加模糊效果 */
 }
 </style>

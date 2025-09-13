@@ -118,7 +118,7 @@ function updateQuality(option: { format: ExportFormat, quality: number }) {
         <Logo class="h-8 w-8" />
         <h1 class="text-xl font-bold tracking-tight">在线拼图工具</h1>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="hidden md:flex items-center gap-2">
         <button @click="appStore.openHelpModal" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
           <QuestionMarkCircleIcon class="w-6 h-6" />
         </button>
@@ -155,8 +155,8 @@ function updateQuality(option: { format: ExportFormat, quality: number }) {
         <main class="flex-1 min-h-0">
           <slot name="main"></slot>
         </main>
-        <!-- New "Landed" Action Console -->
-        <footer class="flex-shrink-0 w-full h-20 flex items-center justify-around sm:justify-center sm:gap-4 px-4 bg-white/50 dark:bg-gray-800/30 border-t border-gray-200 dark:border-gray-700/50 backdrop-blur-sm">
+        <!-- Desktop Action Console -->
+        <footer class="hidden lg:flex flex-shrink-0 w-full h-20 items-center justify-center gap-4 px-4 bg-white/50 dark:bg-gray-800/30 border-t border-gray-200 dark:border-gray-700/50 backdrop-blur-sm">
           <div class="flex items-center gap-2 sm:gap-4">
             <button @click="handleUploadClick" :disabled="canvasStore.imageSlots.every(slot => !!slot)" class="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-primary-500 dark:hover:text-primary-400 transition-all duration-200 rounded-full hover:bg-gray-200/50 dark:hover:bg-gray-700/50">
               <PhotoIcon class="w-6 h-6"/>
@@ -170,7 +170,7 @@ function updateQuality(option: { format: ExportFormat, quality: number }) {
           </div>
 
           <!-- Mobile drawer buttons -->
-          <div class="flex items-center gap-2 sm:gap-4 lg:hidden">
+          <div class="hidden items-center gap-2 sm:gap-4 lg:hidden">
             <button @click="appStore.openTemplates" class="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-primary-500 dark:hover:text-primary-400 rounded-full hover:bg-gray-200/50 dark:hover:bg-gray-700/50">
               <Bars3Icon class="w-6 h-6"/>
               <span class="text-xs sm:text-sm font-medium">模板</span>
@@ -257,6 +257,30 @@ function updateQuality(option: { format: ExportFormat, quality: number }) {
             </button>
           </div>
         </footer>
+
+        <!-- Mobile Bottom Bar -->
+        <footer class="lg:hidden flex-shrink-0 w-full h-16 flex items-center justify-between px-2 bg-white/95 dark:bg-gray-900/70 border-t border-gray-200 dark:border-gray-700/50 backdrop-blur supports-[backdrop-filter]:bg-white/70" :style="{ paddingBottom: 'env(safe-area-inset-bottom)' }">
+          <button @click="handleUploadClick" :disabled="canvasStore.imageSlots.every(slot => !!slot)" class="flex-1 h-full flex flex-col items-center justify-center gap-1 text-gray-600 dark:text-gray-300 disabled:opacity-40">
+            <PhotoIcon class="w-6 h-6" />
+            <span class="text-xs">上传</span>
+          </button>
+          <button @click="handleClearCanvas" :disabled="!canvasStore.hasImages" class="flex-1 h-full flex flex-col items-center justify-center gap-1 text-gray-600 dark:text-gray-300 disabled:opacity-40">
+            <TrashIcon class="w-6 h-6" />
+            <span class="text-xs">清空</span>
+          </button>
+          <button @click="appStore.openTemplates" class="flex-1 h-full flex flex-col items-center justify-center gap-1 text-gray-600 dark:text-gray-300">
+            <Bars3Icon class="w-6 h-6" />
+            <span class="text-xs">模板</span>
+          </button>
+          <button @click="appStore.openParameters" class="flex-1 h-full flex flex-col items-center justify-center gap-1 text-gray-600 dark:text-gray-300">
+            <Cog6ToothIcon class="w-6 h-6" />
+            <span class="text-xs">调整</span>
+          </button>
+          <button @click="handleExportClick" :disabled="!canvasStore.hasImages" class="flex-1 h-full flex flex-col items-center justify-center gap-1 text-primary-600 dark:text-primary-400 disabled:opacity-40">
+            <ArrowDownTrayIcon class="w-6 h-6" />
+            <span class="text-xs">导出</span>
+          </button>
+        </footer>
       </div>
 
       <aside class="hidden lg:flex w-80 flex-shrink-0 border-l border-gray-200 dark:border-gray-700 flex-col">
@@ -270,7 +294,7 @@ function updateQuality(option: { format: ExportFormat, quality: number }) {
     </div>
 
     <!-- Drawers for Mobile -->
-    <!-- Template Drawer -->
+    <!-- Template Drawer as Bottom Sheet on Mobile -->
     <TransitionRoot as="template" :show="appStore.isTemplatesOpen && width < 1024">
       <Dialog as="div" class="relative z-30 lg:hidden" @close="appStore.closeTemplates">
         <TransitionChild as="template" enter="ease-in-out duration-300" enter-from="opacity-0" enter-to="opacity-100" leave="ease-in-out duration-300" leave-from="opacity-100" leave-to="opacity-0">
@@ -278,10 +302,12 @@ function updateQuality(option: { format: ExportFormat, quality: number }) {
         </TransitionChild>
         <div class="fixed inset-0 overflow-hidden">
           <div class="absolute inset-0 overflow-hidden">
-            <div class="pointer-events-none fixed inset-y-0 left-0 flex max-w-full pr-10">
-              <TransitionChild as="template" enter="transform transition ease-in-out duration-300 sm:duration-500" enter-from="-translate-x-full" enter-to="translate-x-0" leave="transform transition ease-in-out duration-300 sm:duration-500" leave-from="translate-x-0" leave-to="-translate-x-full">
-                <DialogPanel class="pointer-events-auto w-screen max-w-md flex flex-col h-full bg-white dark:bg-gray-800">
-                  <div class="flex-1 min-h-0 overflow-y-auto p-6">
+            <!-- Bottom sheet container -->
+            <div class="pointer-events-none fixed inset-x-0 bottom-0 flex justify-center">
+              <TransitionChild as="template" enter="transform transition ease-in-out duration-300 sm:duration-500" enter-from="translate-y-full" enter-to="translate-y-0" leave="transform transition ease-in-out duration-300 sm:duration-500" leave-from="translate-y-0" leave-to="translate-y-full">
+                <DialogPanel class="pointer-events-auto w-screen max-w-xl h-[85vh] bg-white dark:bg-gray-800 rounded-t-2xl shadow-xl flex flex-col">
+                  <div class="w-full h-1.5 rounded-full bg-gray-300/70 dark:bg-gray-700 mx-auto mt-3 mb-2 max-w-[60px]" />
+                  <div class="flex-1 min-h-0 overflow-y-auto p-4 pb-6">
                     <slot name="templates"></slot>
                   </div>
                 </DialogPanel>
