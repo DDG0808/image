@@ -13,9 +13,6 @@ import {
   PaintBrushIcon,
   ArrowDownTrayIcon,
   MagnifyingGlassPlusIcon,
-  ArrowsPointingOutIcon,
-  ArrowUturnLeftIcon,
-  TrashIcon,
 } from '@heroicons/vue/24/outline'
 import { useAppStore } from '@/stores/app'
 
