@@ -169,6 +169,4 @@ open http://localhost:8080
 
 **🎨 让创意无界限，让拼图更简单 🧩**
 
-Made with ❤️ by Claude 4.0 sonnet
-
 </div>
