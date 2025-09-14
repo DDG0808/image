@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  puzzle-tool:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+
+    container_name: puzzle-tool
+
+    ports:
+      - "8080:80"
+
+    restart: unless-stopped
+
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Shanghai
+
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.5'
+        reservations:
+          memory: 64M
+          cpus: '0.25'
+
+    # 日志配置
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # 网络配置
+    networks:
+      - puzzle-network
+
+  # Nginx 反向代理（可选，用于多服务部署）
+  nginx-proxy:
+    image: nginx:stable-alpine
+    container_name: nginx-proxy
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - ./nginx-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/ssl/certs:/etc/ssl/certs:ro
+
+    depends_on:
+      - puzzle-tool
+
+    restart: unless-stopped
+
+    networks:
+      - puzzle-network
+
+    profiles:
+      - proxy
+
+  # Redis 缓存（可选，用于后续功能扩展）
+  redis:
+    image: redis:7-alpine
+    container_name: puzzle-redis
+
+    command: redis-server --appendonly yes
+
+    volumes:
+      - redis-data:/data
+
+    restart: unless-stopped
+
+    networks:
+      - puzzle-network
+
+    profiles:
+      - cache
+
+networks:
+  puzzle-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local

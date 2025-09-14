@@ -6,7 +6,8 @@ import type {
   StyleParams,
   WatermarkOptions,
   ExportOptions,
-  ImageTransform
+  ImageTransform,
+  ImageDisplayMode
 } from '@/types'
 import { useTemplateStore } from './template'
 import { useAppStore } from './app'
@@ -53,6 +54,11 @@ export const useCanvasStore = defineStore('canvas', () => {
     pixelRatio: 2, // Default to 2x resolution
     filename: '无标题拼图'
   })
+
+  // 默认显示模式偏好（从localStorage读取）
+  const defaultDisplayMode = ref<ImageDisplayMode>(
+    (localStorage.getItem('puzzle-tool-default-display-mode') as ImageDisplayMode) || 'stretch'
+  )
 
   // 水印设置
   const watermark = ref<WatermarkOptions>({
@@ -303,27 +309,32 @@ export const useCanvasStore = defineStore('canvas', () => {
 
   // 图片变换相关方法
   const updateImageTransform = (slotIndex: number, transform: Partial<ImageTransform>) => {
-    logger.log('CanvasStore', '🔄 更新图片变换', { 
-      slotIndex, 
+    logger.log('CanvasStore', '🔄 更新图片变换', {
+      slotIndex,
       transform,
       currentImage: imageSlots.value[slotIndex]?.file.name || '空'
     })
-    
+
     if (slotIndex >= 0 && slotIndex < imageSlots.value.length) {
       const image = imageSlots.value[slotIndex]
       if (image) {
-        // 获取当前变换或设置默认值
-        const currentTransform = image.transform || { scale: 1, offsetX: 0, offsetY: 0 }
-        
+        // 获取当前变换或设置默认值（使用用户偏好的默认显示模式）
+        const currentTransform = image.transform || {
+          scale: 1,
+          offsetX: 0,
+          offsetY: 0,
+          displayMode: defaultDisplayMode.value
+        }
+
         // 合并新的变换参数
         const newTransform = { ...currentTransform, ...transform }
-        
+
         // 应用缩放范围限制 (0.5x - 3.0x)
         newTransform.scale = Math.max(0.5, Math.min(3.0, newTransform.scale))
-        
+
         // 更新图片的变换属性
         image.transform = newTransform
-        
+
         logger.log('CanvasStore', '✅ 图片变换已更新', {
           slotIndex,
           newTransform,
@@ -339,7 +350,12 @@ export const useCanvasStore = defineStore('canvas', () => {
 
   const resetImageTransform = (slotIndex: number) => {
     logger.log('CanvasStore', '🔄 重置图片变换', { slotIndex })
-    updateImageTransform(slotIndex, { scale: 1, offsetX: 0, offsetY: 0 })
+    updateImageTransform(slotIndex, {
+      scale: 1,
+      offsetX: 0,
+      offsetY: 0,
+      displayMode: 'stretch' as ImageDisplayMode
+    })
   }
 
   const scaleImage = (slotIndex: number, scaleFactor: number) => {
@@ -361,6 +377,97 @@ export const useCanvasStore = defineStore('canvas', () => {
 
   const zoomOutImage = (slotIndex: number) => {
     scaleImage(slotIndex, 0.8) // 每次缩小20%
+  }
+
+  // 切换图片显示模式
+  const toggleImageDisplayMode = (slotIndex: number) => {
+    logger.log('CanvasStore', '🔄 切换图片显示模式', { slotIndex })
+
+    // 输入校验：确保slotIndex是有效的数字
+    if (typeof slotIndex !== 'number' || !Number.isInteger(slotIndex)) {
+      logger.error('CanvasStore', '❌ 无效的slotIndex类型', { slotIndex, type: typeof slotIndex })
+      return
+    }
+
+    if (slotIndex >= 0 && slotIndex < imageSlots.value.length) {
+      const image = imageSlots.value[slotIndex]
+      if (image) {
+        const currentMode = image.transform?.displayMode || 'stretch'
+        const newMode: ImageDisplayMode = currentMode === 'stretch' ? 'original' : 'stretch'
+
+        updateImageTransform(slotIndex, { displayMode: newMode })
+
+        logger.log('CanvasStore', '✅ 图片显示模式切换完成', {
+          slotIndex,
+          oldMode: currentMode,
+          newMode,
+          imageId: image.id
+        })
+      } else {
+        logger.warn('CanvasStore', '⚠️ 指定插槽无图片，无法切换显示模式', { slotIndex })
+      }
+    } else {
+      logger.error('CanvasStore', '❌ 插槽索引超出范围', { slotIndex, maxIndex: imageSlots.value.length - 1 })
+    }
+  }
+
+  // 设置图片显示模式
+  const setImageDisplayMode = (slotIndex: number, mode: ImageDisplayMode) => {
+    logger.log('CanvasStore', '🎯 设置图片显示模式', { slotIndex, mode })
+
+    // 输入校验：确保mode是有效的显示模式
+    if (mode !== 'stretch' && mode !== 'original') {
+      logger.error('CanvasStore', '❌ 无效的显示模式', { mode })
+      return
+    }
+
+    // 输入校验：确保slotIndex是有效的数字
+    if (typeof slotIndex !== 'number' || !Number.isInteger(slotIndex)) {
+      logger.error('CanvasStore', '❌ 无效的slotIndex类型', { slotIndex, type: typeof slotIndex })
+      return
+    }
+
+    updateImageTransform(slotIndex, { displayMode: mode })
+  }
+
+  // 设置默认显示模式偏好
+  const setDefaultDisplayMode = (mode: ImageDisplayMode) => {
+    logger.log('CanvasStore', '⚙️ 更新默认显示模式偏好', { mode })
+
+    // 输入校验：确保mode是有效的显示模式
+    if (mode !== 'stretch' && mode !== 'original') {
+      logger.error('CanvasStore', '❌ 无效的默认显示模式', { mode })
+      return
+    }
+
+    defaultDisplayMode.value = mode
+
+    // 安全地保存到localStorage
+    try {
+      localStorage.setItem('puzzle-tool-default-display-mode', mode)
+      logger.log('CanvasStore', '✅ 默认显示模式偏好已保存', { mode })
+    } catch (error) {
+      logger.warn('CanvasStore', '⚠️ 无法保存显示模式偏好到localStorage', {
+        error,
+        message: error instanceof Error ? error.message : String(error)
+      })
+      // localStorage可能被禁用或存储空间满了，但不影响功能继续执行
+    }
+  }
+
+  // 批量设置图片显示模式并更新偏好
+  const setAllImagesDisplayModeAndDefault = (mode: ImageDisplayMode) => {
+    logger.log('CanvasStore', '🔄 批量设置图片显示模式并更新偏好', { mode })
+
+    // 设置所有图片的显示模式
+    imageSlots.value.forEach((slot, index) => {
+      if (slot) {
+        setImageDisplayMode(index, mode)
+      }
+    })
+
+    // 更新默认偏好
+    setDefaultDisplayMode(mode)
   }
 
   // 监听模板变化，自动初始化插槽
@@ -387,6 +494,7 @@ export const useCanvasStore = defineStore('canvas', () => {
     styleParams,
     watermark,
     exportOptions,
+    defaultDisplayMode,
     // 计算属性
     hasImages,
     // 方法
@@ -408,6 +516,10 @@ export const useCanvasStore = defineStore('canvas', () => {
     resetImageTransform,
     scaleImage,
     zoomInImage,
-    zoomOutImage
+    zoomOutImage,
+    toggleImageDisplayMode,
+    setImageDisplayMode,
+    setDefaultDisplayMode,
+    setAllImagesDisplayModeAndDefault
   }
 })

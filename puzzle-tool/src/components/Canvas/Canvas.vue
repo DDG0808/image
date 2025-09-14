@@ -447,6 +447,92 @@ onMounted(() => {
   
   logger.log('Canvas', '🎉 组件初始化完成')
 })
+
+// 性能优化：计算图片配置的函数
+const getImageConfig = (index: number, slot: { x: number; y: number; width: number; height: number }) => {
+  const slotWidth = (slot.width / 100) * (stageConfig.value.width - canvasStore.styleParams.padding.left - canvasStore.styleParams.padding.right) - canvasStore.styleParams.spacing
+  const slotHeight = (slot.height / 100) * (stageConfig.value.height - canvasStore.styleParams.padding.top - canvasStore.styleParams.padding.bottom) - canvasStore.styleParams.spacing
+  const imageSlot = canvasStore.imageSlots[index]
+  const displayMode = imageSlot?.transform?.displayMode || 'stretch'
+  const originalImage = images.value[index]
+
+  // 安全检查：确保参数有效
+  if (!imageSlot || !originalImage || slotWidth <= 0 || slotHeight <= 0) {
+    return null
+  }
+
+  // 通用配置
+  const baseConfig = {
+    image: originalImage.image(),
+    cornerRadius: canvasStore.styleParams.borderRadius,
+    draggable: true,
+    scaleX: (draggedIndex.value === index ? 1.05 : 1) * (imageSlot?.transform?.scale || 1),
+    scaleY: (draggedIndex.value === index ? 1.05 : 1) * (imageSlot?.transform?.scale || 1),
+    shadowColor: 'black',
+    shadowBlur: draggedIndex.value === index ? 10 : 0,
+    shadowOpacity: 0.5,
+    shadowOffsetX: draggedIndex.value === index ? 5 : 0,
+    shadowOffsetY: draggedIndex.value === index ? 5 : 0,
+    perfectDrawEnabled: false,
+    listening: true
+  }
+
+  // 根据显示模式计算图片配置
+  if (displayMode === 'original') {
+    // 原图模式：按照图片原始像素大小显示
+    try {
+      const imageWidth = originalImage.width()
+      const imageHeight = originalImage.height()
+
+      // 边界检查：防止异常尺寸
+      if (imageWidth <= 0 || imageHeight <= 0) {
+        logger.warn('Canvas', '⚠️ 图片尺寸无效，使用拉伸模式', { imageWidth, imageHeight, index })
+        return {
+          ...baseConfig,
+          x: imageSlot?.transform?.offsetX || 0,
+          y: imageSlot?.transform?.offsetY || 0,
+          width: slotWidth,
+          height: slotHeight
+        }
+      }
+
+      // 使用图片原始像素尺寸
+      const renderWidth = imageWidth
+      const renderHeight = imageHeight
+
+      // 居中显示（图片可能超出相框边界）
+      const offsetX = (slotWidth - renderWidth) / 2 + (imageSlot?.transform?.offsetX || 0)
+      const offsetY = (slotHeight - renderHeight) / 2 + (imageSlot?.transform?.offsetY || 0)
+
+      logger.log('Canvas', '📐 原图模式配置', {
+        index,
+        originalSize: `${imageWidth}x${imageHeight}`,
+        slotSize: `${slotWidth}x${slotHeight}`,
+        renderSize: `${renderWidth}x${renderHeight}`,
+        offset: `${offsetX},${offsetY}`
+      })
+
+      return {
+        ...baseConfig,
+        x: offsetX,
+        y: offsetY,
+        width: renderWidth,
+        height: renderHeight
+      }
+    } catch (error) {
+      logger.error('Canvas', '❌ 原图模式配置计算失败，回退到拉伸模式', { error, index })
+    }
+  }
+
+  // 拉伸模式（默认）：图片填满整个插槽
+  return {
+    ...baseConfig,
+    x: imageSlot?.transform?.offsetX || 0,
+    y: imageSlot?.transform?.offsetY || 0,
+    width: slotWidth,
+    height: slotHeight
+  }
+}
 </script>
 
 <template>
@@ -476,6 +562,29 @@ onMounted(() => {
                 y: canvasStore.styleParams.padding.top + (slot.y / 100) * (stageConfig.height - canvasStore.styleParams.padding.top - canvasStore.styleParams.padding.bottom) + canvasStore.styleParams.spacing / 2,
                 width: (slot.width / 100) * (stageConfig.width - canvasStore.styleParams.padding.left - canvasStore.styleParams.padding.right) - canvasStore.styleParams.spacing,
                 height: (slot.height / 100) * (stageConfig.height - canvasStore.styleParams.padding.top - canvasStore.styleParams.padding.bottom) - canvasStore.styleParams.spacing,
+                clipFunc: (ctx: CanvasRenderingContext2D) => {
+                  const clipWidth = (slot.width / 100) * (stageConfig.width - canvasStore.styleParams.padding.left - canvasStore.styleParams.padding.right) - canvasStore.styleParams.spacing
+                  const clipHeight = (slot.height / 100) * (stageConfig.height - canvasStore.styleParams.padding.top - canvasStore.styleParams.padding.bottom) - canvasStore.styleParams.spacing
+                  const radius = canvasStore.styleParams.borderRadius
+
+                  ctx.beginPath()
+                  if (radius > 0) {
+                    // 圆角矩形裁剪
+                    ctx.moveTo(radius, 0)
+                    ctx.lineTo(clipWidth - radius, 0)
+                    ctx.quadraticCurveTo(clipWidth, 0, clipWidth, radius)
+                    ctx.lineTo(clipWidth, clipHeight - radius)
+                    ctx.quadraticCurveTo(clipWidth, clipHeight, clipWidth - radius, clipHeight)
+                    ctx.lineTo(radius, clipHeight)
+                    ctx.quadraticCurveTo(0, clipHeight, 0, clipHeight - radius)
+                    ctx.lineTo(0, radius)
+                    ctx.quadraticCurveTo(0, 0, radius, 0)
+                  } else {
+                    // 矩形裁剪
+                    ctx.rect(0, 0, clipWidth, clipHeight)
+                  }
+                  ctx.closePath()
+                }
               }"
             >
               <!-- 背景事件接收器 - 几乎透明但能接收鼠标事件 -->
@@ -493,25 +602,7 @@ onMounted(() => {
               />
               <v-image
                 v-if="canvasStore.imageSlots[index] && images[index]"
-                :config="{
-                  x: canvasStore.imageSlots[index]?.transform?.offsetX || 0,
-                  y: canvasStore.imageSlots[index]?.transform?.offsetY || 0,
-                  width: (slot.width / 100) * (stageConfig.width - canvasStore.styleParams.padding.left - canvasStore.styleParams.padding.right) - canvasStore.styleParams.spacing,
-                  height: (slot.height / 100) * (stageConfig.height - canvasStore.styleParams.padding.top - canvasStore.styleParams.padding.bottom) - canvasStore.styleParams.spacing,
-                  image: images[index]?.image(),
-                  cornerRadius: canvasStore.styleParams.borderRadius,
-                  draggable: true,
-                  // 应用图片变换
-                  scaleX: (draggedIndex === index ? 1.05 : 1) * (canvasStore.imageSlots[index]?.transform?.scale || 1),
-                  scaleY: (draggedIndex === index ? 1.05 : 1) * (canvasStore.imageSlots[index]?.transform?.scale || 1),
-                  shadowColor: 'black',
-                  shadowBlur: draggedIndex === index ? 10 : 0,
-                  shadowOpacity: 0.5,
-                  shadowOffsetX: draggedIndex === index ? 5 : 0,
-                  shadowOffsetY: draggedIndex === index ? 5 : 0,
-                  perfectDrawEnabled: false,
-                  listening: true
-                }"
+                :config="getImageConfig(index, slot)"
                 @dragstart="(e: KonvaEventObject<DragEvent>) => handleDragStart(index, e)"
                 @dragmove="(e: KonvaEventObject<DragEvent>) => handleDragMove(index, e)"
                 @dragend="(e: KonvaEventObject<DragEvent>) => handleDragEnd(index, e)"
@@ -584,7 +675,7 @@ onMounted(() => {
                     x: (slot.width / 100) * (stageConfig.width - canvasStore.styleParams.padding.left - canvasStore.styleParams.padding.right) - canvasStore.styleParams.spacing - 52,
                     y: 6,
                     width: 44,
-                    height: 164,
+                    height: 194, // 增加高度以容纳新按钮
                     fill: 'rgba(255, 255, 255, 0.9)',
                     cornerRadius: 22,
                     shadowColor: 'rgba(0, 0, 0, 0.1)',
@@ -766,11 +857,70 @@ onMounted(() => {
                   />
                 </v-group>
 
+                <!-- 显示模式切换按钮 - 现代紫色渐变 -->
+                <v-group
+                  :config="{
+                    x: (slot.width / 100) * (stageConfig.width - canvasStore.styleParams.padding.left - canvasStore.styleParams.padding.right) - canvasStore.styleParams.spacing - 30,
+                    y: 142,
+                  }"
+                  @click="canvasStore.toggleImageDisplayMode(index)"
+                  @tap="canvasStore.toggleImageDisplayMode(index)"
+                  @mouseenter="(e: KonvaEventObject<MouseEvent>) => {
+                    e.target.getStage()!.container().style.cursor = 'pointer'
+                    handleMouseEnter(index)
+                  }"
+                  @mouseleave="(e: KonvaEventObject<MouseEvent>) => {
+                    e.target.getStage()!.container().style.cursor = 'default'
+                    handleMouseLeave()
+                  }"
+                >
+                  <!-- 按钮背景 - 根据当前模式改变颜色 -->
+                  <v-circle
+                    :config="{
+                      radius: 14,
+                      fill: (canvasStore.imageSlots[index]?.transform?.displayMode || 'stretch') === 'original'
+                        ? 'rgba(34, 197, 94, 0.8)'
+                        : 'rgba(168, 85, 247, 0.8)',
+                      shadowColor: 'rgba(0, 0, 0, 0.15)',
+                      shadowBlur: 8,
+                      shadowOffsetY: 2,
+                    }"
+                  />
+                  <!-- 显示模式图标 - 根据当前模式切换 -->
+                  <v-path
+                    v-if="(canvasStore.imageSlots[index]?.transform?.displayMode || 'stretch') === 'stretch'"
+                    :config="{
+                      data: 'M -4 -4 L 4 -4 L 4 4 L -4 4 Z M -2 -2 L 2 -2 L 2 2 L -2 2 Z',
+                      fill: 'white',
+                      strokeWidth: 0,
+                    }"
+                  />
+                  <v-path
+                    v-else
+                    :config="{
+                      data: 'M -4 -4 L 4 -4 L 4 4 L -4 4 Z',
+                      stroke: 'white',
+                      strokeWidth: 1.5,
+                      fill: 'transparent'
+                    }"
+                  />
+                  <v-rect
+                    v-if="(canvasStore.imageSlots[index]?.transform?.displayMode || 'stretch') === 'original'"
+                    :config="{
+                      x: -2,
+                      y: -2,
+                      width: 4,
+                      height: 4,
+                      fill: 'white'
+                    }"
+                  />
+                </v-group>
+
                 <!-- 删除按钮 - 现代红色渐变 -->
               <v-group
                 :config="{
                     x: (slot.width / 100) * (stageConfig.width - canvasStore.styleParams.padding.left - canvasStore.styleParams.padding.right) - canvasStore.styleParams.spacing - 30,
-                    y: 142,
+                    y: 172,
                 }"
                 @click="canvasStore.removeImage(index)"
                 @tap="canvasStore.removeImage(index)"
@@ -787,7 +937,7 @@ onMounted(() => {
                 <v-circle
                   :config="{
                       radius: 14,
-                      fill: 'rgba(0, 0, 0, 0.7)',
+                      fill: 'rgba(239, 68, 68, 0.8)',
                       shadowColor: 'rgba(0, 0, 0, 0.15)',
                       shadowBlur: 8,
                       shadowOffsetY: 2,

@@ -22,11 +22,15 @@ export interface TemplateGroup {
   templates: Template[]
 }
 
+// 图片显示模式类型定义
+export type ImageDisplayMode = 'stretch' | 'original'
+
 // 图片变换相关类型定义
 export interface ImageTransform {
   scale: number    // 缩放比例，1.0为原始大小
   offsetX: number  // X轴偏移量（像素）
   offsetY: number  // Y轴偏移量（像素）
+  displayMode: ImageDisplayMode  // 图片显示模式：拉伸或原图
 }
 
 // 图片相关类型定义

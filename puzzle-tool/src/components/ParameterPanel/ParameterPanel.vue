@@ -8,7 +8,8 @@ import {
   ArrowsPointingOutIcon,
   PaintBrushIcon,
   ArrowUturnLeftIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  PhotoIcon
 } from '@heroicons/vue/24/outline'
 
 const canvasStore = useCanvasStore()
@@ -39,6 +40,7 @@ const watermark = computed(() => canvasStore.watermark)
 // 折叠控制
 const isCanvasSettingsOpen = ref(true)
 const isStyleAdjustmentsOpen = ref(true)
+const isImageSettingsOpen = ref(true)
 const isWatermarkOpen = ref(true)
 
 // 水印位置选项
@@ -73,6 +75,24 @@ const updateAspectRatio = (ratio: string) => {
   trackEvent('aspect_ratio_changed', { ratio })
 }
 
+// 批量设置图片显示模式
+const setAllImagesDisplayMode = (mode: 'stretch' | 'original') => {
+  const hasImages = canvasStore.imageSlots.some(slot => slot !== null)
+  if (!hasImages) {
+    appStore.showInfo('设置失败', '请先添加图片')
+    return
+  }
+
+  // 使用新的方法，既设置图片又保存偏好
+  canvasStore.setAllImagesDisplayModeAndDefault(mode)
+
+  const modeText = mode === 'stretch' ? '拉伸填充' : '原始大小'
+  appStore.showSuccess('设置成功', `已将所有图片设置为${modeText}模式，并保存为默认偏好`)
+
+  // 分析埋点：显示模式变更
+  trackEvent('image_display_mode_changed', { mode, scope: 'all' })
+}
+
 // 重置参数
 const resetParams = () => {
   canvasStore.updateStyleParams({
@@ -95,6 +115,14 @@ const resetParams = () => {
     rotation: 45,
     density: 'medium'
   })
+
+  // 重置所有图片显示模式为拉伸
+  canvasStore.imageSlots.forEach((slot, index) => {
+    if (slot) {
+      canvasStore.setImageDisplayMode(index, 'stretch')
+    }
+  })
+
   appStore.showSuccess('参数已重置', '所有参数已恢复为默认值')
 }
 </script>
@@ -255,6 +283,65 @@ const resetParams = () => {
               @input="updateBackgroundColor(($event.target as HTMLInputElement).value)"
                   class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 图片设置 -->
+      <div>
+        <div class="mb-3 flex items-center justify-between select-none cursor-pointer" @click="isImageSettingsOpen = !isImageSettingsOpen">
+          <h4 class="text-sm font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-2">
+            <PhotoIcon class="w-5 h-5"/>
+            图片设置
+          </h4>
+          <ChevronDownIcon class="w-5 h-5 transition-transform text-gray-400" :class="isImageSettingsOpen ? 'rotate-0' : '-rotate-90'" />
+        </div>
+
+        <div v-show="isImageSettingsOpen" class="space-y-4 p-3 rounded-md bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700/50">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-3">显示模式</label>
+            <div class="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+              <button
+                @click="setAllImagesDisplayMode('stretch')"
+                class="px-3 py-2 text-center rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2"
+                :class="[
+                  'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900/50 shadow hover:bg-gray-50 dark:hover:bg-gray-800'
+                ]"
+                :title="'将所有图片设置为拉伸模式，图片会拉伸填满整个相框区域'"
+              >
+                <svg class="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M1 2a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2zm2 1v10h10V3H3z"/>
+                  <path d="M4 4h8v8H4V4z"/>
+                </svg>
+                拉伸填充
+              </button>
+              <button
+                @click="setAllImagesDisplayMode('original')"
+                class="px-3 py-2 text-center rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2"
+                :class="[
+                  'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900/50 shadow hover:bg-gray-50 dark:hover:bg-gray-800'
+                ]"
+                :title="'将所有图片设置为原图模式，按照图片原始像素大小显示，可能超出相框边界'"
+              >
+                <svg class="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M1 2a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2zm2 1v10h10V3H3z"/>
+                  <path d="M6 5h4v6H6V5z"/>
+                </svg>
+                原始大小
+              </button>
+            </div>
+            <div class="mt-2">
+              <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                <div class="flex items-start gap-1 mb-1">
+                  <span class="font-medium">拉伸填充：</span>
+                  <span>图片会拉伸填满整个相框，可能会改变原始比例</span>
+                </div>
+                <div class="flex items-start gap-1">
+                  <span class="font-medium">原始大小：</span>
+                  <span>按照图片原始像素尺寸显示，可能超出相框边界</span>
+                </div>
               </div>
             </div>
           </div>
