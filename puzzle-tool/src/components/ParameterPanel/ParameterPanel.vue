@@ -86,7 +86,7 @@ const setAllImagesDisplayMode = (mode: 'stretch' | 'original') => {
   // 使用新的方法，既设置图片又保存偏好
   canvasStore.setAllImagesDisplayModeAndDefault(mode)
 
-  const modeText = mode === 'stretch' ? '拉伸填充' : '原始大小'
+  const modeText = mode === 'stretch' ? '拉伸' : '原图'
   appStore.showSuccess('设置成功', `已将所有图片设置为${modeText}模式，并保存为默认偏好`)
 
   // 分析埋点：显示模式变更
@@ -315,7 +315,7 @@ const resetParams = () => {
                   <path d="M1 2a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2zm2 1v10h10V3H3z"/>
                   <path d="M4 4h8v8H4V4z"/>
                 </svg>
-                拉伸填充
+                拉伸
               </button>
               <button
                 @click="setAllImagesDisplayMode('original')"
@@ -329,17 +329,17 @@ const resetParams = () => {
                   <path d="M1 2a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2zm2 1v10h10V3H3z"/>
                   <path d="M6 5h4v6H6V5z"/>
                 </svg>
-                原始大小
+                原图
               </button>
             </div>
             <div class="mt-2">
               <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
                 <div class="flex items-start gap-1 mb-1">
-                  <span class="font-medium">拉伸填充：</span>
+                  <span class="font-medium">拉伸：</span>
                   <span>图片会拉伸填满整个相框，可能会改变原始比例</span>
                 </div>
                 <div class="flex items-start gap-1">
-                  <span class="font-medium">原始大小：</span>
+                  <span class="font-medium">原图：</span>
                   <span>按照图片原始像素尺寸显示，可能超出相框边界</span>
                 </div>
               </div>
