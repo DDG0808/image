@@ -84,15 +84,15 @@ src/
 ## 📖 文档导航
 
 ### 🔧 开发相关
-- **[快速测试指南](./puzzle-tool/QUICK_TEST.md)** - 快速验证功能是否正常工作
-- **[调试指南](./puzzle-tool/DEBUG_GUIDE.md)** - 详细的问题诊断和调试方法
+- **[快速测试指南](puzzle-tool/QUICK_TEST.md)** - 快速验证功能是否正常工作
+- **[调试指南](puzzle-tool/DEBUG_GUIDE.md)** - 详细的问题诊断和调试方法
 
 ### 🚀 部署相关
-- **[快速部署](./puzzle-tool/QUICK_DEPLOY.md)** - 3种常用部署方式的快速指南
-- **[完整部署文档](./puzzle-tool/DEPLOYMENT.md)** - 详细的部署说明和配置指南
+- **[快速部署](puzzle-tool/QUICK_DEPLOY.md)** - 3种常用部署方式的快速指南
+- **[完整部署文档](puzzle-tool/DEPLOYMENT.md)** - 详细的部署说明和配置指南
 
 ### 📋 项目文档
-- **[产品需求文档](./在线拼图工具产品需求文档（PRD）.md)** - 完整的产品需求和设计说明
+- **[产品需求文档](在线拼图工具产品需求文档（PRD）.md)** - 完整的产品需求和设计说明
 
 ## 🎯 使用指南
 
@@ -143,7 +143,7 @@ open http://localhost:8080
 - 详细的控制台日志系统
 - 完整的错误追踪机制
 
-遇到问题？查看 **[调试指南](./puzzle-tool/DEBUG_GUIDE.md)** 获取帮助。
+遇到问题？查看 **[调试指南](puzzle-tool/DEBUG_GUIDE.md)** 获取帮助。
 
 ## 🤝 贡献指南
 
