@@ -125,6 +125,17 @@ function updateQuality(option: { format: ExportFormat, quality: number }) {
         <button @click="appStore.openAboutModal" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
           <InformationCircleIcon class="w-6 h-6" />
         </button>
+        <a
+          href="https://github.com/DDG0808/image"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          title="GitHub"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 2.5c-5.25 0-9.5 4.25-9.5 9.5 0 4.19 2.72 7.75 6.5 9.02.47.09.64-.2.64-.45v-1.58c-2.64.57-3.2-1.27-3.2-1.27-.43-1.09-1.05-1.38-1.05-1.38-.86-.59.07-.58.07-.58.95.07 1.45.98 1.45.98.85 1.46 2.23 1.04 2.77.79.09-.62.33-1.04.6-1.28-2.11-.24-4.33-1.06-4.33-4.71 0-1.04.37-1.89.98-2.56-.1-.24-.42-1.21.09-2.52 0 0 .8-.26 2.62.98.76-.21 1.58-.32 2.39-.32s1.63.11 2.39.32c1.82-1.24 2.62-.98 2.62-.98.51 1.31.19 2.28.09 2.52.61.67.98 1.52.98 2.56 0 3.66-2.23 4.47-4.35 4.71.34.3.65.88.65 1.77v2.63c0 .26.18.55.65.45 3.78-1.27 6.5-4.83 6.5-9.02 0-5.25-4.25-9.5-9.5-9.5z" />
+          </svg>
+        </a>
         <button @click="toggleDark()" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
           <SunIcon v-if="isDark" class="w-6 h-6" />
           <MoonIcon v-else class="w-6 h-6" />
